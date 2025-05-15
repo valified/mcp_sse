@@ -9,8 +9,8 @@ defmodule SSE.ConnectionPlugTest do
   alias MCP.Test.JsonRpcSchema
 
   alias SSE.ConnectionPlug
-  alias SSE.ConnectionRegistry
   alias SSE.ConnectionState
+  alias SSE.SessionStorage.ETS
 
   @sse_path Application.compile_env(:mcp_sse, :sse_path)
   @message_path Application.compile_env(:mcp_sse, :message_path)
@@ -18,12 +18,12 @@ defmodule SSE.ConnectionPlugTest do
   @opts ConnectionPlug.init([])
 
   setup do
-    # Clean up any existing data before each test
-    :ets.match_delete(ConnectionRegistry.table_name(), {:_, :_, :_})
+    # Clean up any existing data before each test to ensure isolation between tests
+    :ets.delete_all_objects(ETS.table_name())
 
     on_exit(fn ->
       # Clean up any test data
-      :ets.match_delete(ConnectionRegistry.table_name(), {:_, :_, :_})
+      :ets.delete_all_objects(ETS.table_name())
     end)
 
     :ok
@@ -33,7 +33,7 @@ defmodule SSE.ConnectionPlugTest do
     setup do
       session_id = "test-session-#{:rand.uniform(1000)}"
       {:ok, state_pid} = ConnectionState.start_link(session_id)
-      :ets.insert(ConnectionRegistry.table_name(), {session_id, self(), state_pid})
+      ETS.insert(session_id, self(), state_pid)
 
       # Build a test connection for a POST to the message path
       conn =
@@ -178,12 +178,14 @@ defmodule SSE.ConnectionPlugTest do
       :timer.sleep(100)
 
       # Verify that a connection was established in the ETS table
-      connections = :ets.tab2list(ConnectionRegistry.table_name())
+      connections = :ets.tab2list(ETS.table_name())
       assert length(connections) == 1
-      [{session_id, _pid, _state_pid}] = connections
+
+      # Extract session_id from the connection entry
+      [{session_id, _pid, _state_pid, _expires_at}] = connections
 
       # Clean up the connection
-      :ets.delete(ConnectionRegistry.table_name(), session_id)
+      ETS.delete(session_id)
     end
   end
 end

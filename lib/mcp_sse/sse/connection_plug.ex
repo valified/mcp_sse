@@ -52,8 +52,8 @@ defmodule SSE.ConnectionPlug do
   require Logger
 
   alias MCP.MessageRouter
-  alias SSE.ConnectionRegistry
   alias SSE.ConnectionState
+  alias SSE.SessionStorage
 
   @sse_path Application.compile_env(:mcp_sse, :sse_path, "/sse")
   @message_path Application.compile_env(:mcp_sse, :message_path, "/message")
@@ -207,7 +207,7 @@ defmodule SSE.ConnectionPlug do
   end
 
   defp register_connection(conn, session_id, state_pid) do
-    :ets.insert(ConnectionRegistry.table_name(), {session_id, self(), state_pid})
+    SessionStorage.storage_module().insert(session_id, self(), state_pid)
 
     Logger.info(
       "SSE connection established. Session ID: #{session_id}, Process PID: #{inspect(self())}"
@@ -313,7 +313,7 @@ defmodule SSE.ConnectionPlug do
         :ok
     end
 
-    :ets.delete(ConnectionRegistry.table_name(), session_id)
+    SessionStorage.storage_module().delete(session_id)
     Logger.info("SSE connection closed for session #{session_id}")
   end
 
@@ -328,7 +328,7 @@ defmodule SSE.ConnectionPlug do
         :ok
     end
 
-    :ets.delete(ConnectionRegistry.table_name(), session_id)
+    SessionStorage.storage_module().delete(session_id)
 
     case chunk(conn, "event: close\ndata: #{reason}\n\n") do
       {:ok, conn} -> halt(conn)
@@ -345,10 +345,7 @@ defmodule SSE.ConnectionPlug do
   end
 
   defp lookup_session(session_id) do
-    case :ets.lookup(ConnectionRegistry.table_name(), session_id) do
-      [{^session_id, pid, state_pid}] -> {:ok, {pid, state_pid}}
-      [] -> {:error, :session_not_found}
-    end
+    SessionStorage.storage_module().lookup(session_id)
   end
 
   defp validate_jsonrpc_message(%{"jsonrpc" => "2.0"} = message) do

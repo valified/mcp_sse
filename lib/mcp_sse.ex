@@ -11,7 +11,7 @@ defmodule MCP.SSE do
 
       false ->
         children = [
-          SSE.ConnectionRegistry
+          SSE.SessionStorage.child_spec()
         ]
 
         opts = [strategy: :one_for_one, name: MCP.SSE.Supervisor]

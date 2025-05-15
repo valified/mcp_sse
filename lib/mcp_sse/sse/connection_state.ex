@@ -3,7 +3,7 @@ defmodule SSE.ConnectionState do
   # Internal state management for SSE connections
   use GenServer
 
-  alias SSE.ConnectionRegistry
+  alias SSE.SessionStorage
 
   require Logger
 
@@ -152,12 +152,12 @@ defmodule SSE.ConnectionState do
   def handle_info(:init_timeout, %{session_id: session_id} = state) do
     Logger.warning("Initialization timeout for session #{session_id}")
     # Look up the connection safely
-    case :ets.lookup(ConnectionRegistry.table_name(), session_id) do
-      [{^session_id, pid, _state_pid}] ->
+    case SessionStorage.storage_module().lookup(session_id) do
+      {:ok, {pid, _state_pid}} ->
         send(pid, :init_timeout)
 
-      _ ->
-        Logger.debug("Connection already removed from registry for session #{session_id}")
+      {:error, :session_not_found} ->
+        Logger.debug("Connection already removed from storage for session #{session_id}")
     end
 
     {:noreply, state}

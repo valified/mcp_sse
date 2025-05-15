@@ -4,19 +4,22 @@ defmodule SSE.ConnectionStateTest do
   import ExUnit.CaptureLog
 
   alias SSE.ConnectionState
+  alias SSE.SessionStorage.ETS
 
   setup do
+    case Process.whereis(ETS) do
+      nil ->
+        {:ok, _} = ETS.start_link()
+
+      _ ->
+        :ok
+    end
+
     session_id = "test-session-#{:rand.uniform(1000)}"
     {:ok, pid} = ConnectionState.start_link(session_id)
 
-    # Set up ETS table if it doesn't exist
-    if :ets.whereis(:sse_connections) == :undefined do
-      :ets.new(:sse_connections, [:named_table, :public])
-    end
-
     on_exit(fn ->
-      # Clean up any test data but don't delete the table
-      :ets.match_delete(:sse_connections, {session_id, :_, :_})
+      ETS.delete(session_id)
     end)
 
     %{session_id: session_id, pid: pid}
@@ -61,7 +64,7 @@ defmodule SSE.ConnectionStateTest do
   describe "timeouts" do
     test "handles initialization timeout when not ready", %{pid: pid, session_id: session_id} do
       # Insert our test connection
-      :ets.insert(:sse_connections, {session_id, self(), pid})
+      ETS.insert(session_id, self(), pid)
 
       log =
         capture_log(fn ->
