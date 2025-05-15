@@ -21,6 +21,21 @@ defmodule SSE.ConnectionPlug do
         post "/message", SSE.ConnectionPlug, :call
       end
 
+  ### Custom base URL
+
+  By default, the URL for the SSE endpoint is generated using the connection's scheme, host, and port.
+  This can be customized by assigning `:url_generator` to the plug assigns.
+
+      get "/sse", SSE.ConnectionPlug, :call, assigns: %{url_generator: &MyApp.CustomUrlGenerator.generate/1}
+
+  The custom function should accept a Plug.Conn and return a string with the base URL.
+
+  Example:
+
+      defmodule MyApp.CustomUrlGenerator do
+        def generate(_conn), do: MyAppWeb.Endpoint.url()
+      end
+
   ## Usage in Plug Router
 
       forward "/sse", to: SSE.ConnectionPlug
@@ -202,8 +217,11 @@ defmodule SSE.ConnectionPlug do
   end
 
   defp send_initial_message(conn, session_id) do
-    endpoint =
-      "#{conn.scheme}://#{conn.host}:#{conn.port}#{@message_path}?sessionId=#{session_id}"
+    url_generator = Map.get(conn.assigns, :url_generator, &default_url_generator/1)
+
+    base_url = url_generator.(conn)
+
+    endpoint = "#{base_url}#{@message_path}?sessionId=#{session_id}"
 
     case chunk(conn, "event: endpoint\ndata: #{endpoint}\n\n") do
       {:ok, conn} -> conn
@@ -359,5 +377,10 @@ defmodule SSE.ConnectionPlug do
 
     :io_lib.format("~8.16.0b-~8.16.0b-~8.16.0b", [i1, i2, i3])
     |> List.to_string()
+  end
+
+  defp default_url_generator(conn) do
+    Logger.debug("DEFAULT Generating URL for connection: #{inspect(conn)}")
+    "#{conn.scheme}://#{conn.host}:#{conn.port}"
   end
 end
