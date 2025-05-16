@@ -7,7 +7,7 @@ defmodule SSE.SessionStorageTest do
     def child_spec(opts), do: %{id: __MODULE__, opts: opts}
     def start_link(_), do: {:ok, self()}
     def insert(_, _, _), do: :ok
-    def insert_with_ttl(_, _, _, _), do: :ok
+
     def lookup(_), do: {:ok, {self(), self()}}
     def delete(_), do: :ok
     def cleanup_expired, do: :ok

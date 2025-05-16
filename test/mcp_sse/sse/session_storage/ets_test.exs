@@ -84,32 +84,19 @@ defmodule SSE.SessionStorage.ETSTest do
     end
   end
 
-  describe "insert/4" do
-    test "stores a session with default TTL", %{
+  describe "insert/3" do
+    test "stores a session with TTL from config", %{
       sse_pid: sse_pid,
       state_pid: state_pid,
       session_id: session_id
     } do
-      assert :ok = ETS.insert(session_id, sse_pid, state_pid)
-
-      assert {:ok, {^sse_pid, ^state_pid}} = ETS.lookup(session_id)
-    end
-
-    test "stores a session with custom TTL", %{
-      sse_pid: sse_pid,
-      state_pid: state_pid,
-      session_id: session_id
-    } do
-      ttl = 1111
       current_time = :os.system_time(:seconds)
-
-      assert :ok = ETS.insert(session_id, sse_pid, state_pid, ttl)
+      assert :ok = ETS.insert(session_id, sse_pid, state_pid)
 
       [{^session_id, ^sse_pid, ^state_pid, expires_at}] =
         :ets.lookup(ETS.table_name(), session_id)
 
-      assert_in_delta expires_at, current_time + ttl, 1
-
+      assert_in_delta expires_at, current_time + SSE.SessionStorage.default_ttl(), 1
       assert {:ok, {^sse_pid, ^state_pid}} = ETS.lookup(session_id)
     end
 
@@ -118,10 +105,7 @@ defmodule SSE.SessionStorage.ETSTest do
       state_pid: state_pid,
       session_id: session_id
     } do
-      ttl = 10
-
-      assert :ok = ETS.insert(session_id, sse_pid, state_pid, ttl)
-
+      assert :ok = ETS.insert(session_id, sse_pid, state_pid)
       assert {:ok, {^sse_pid, ^state_pid}} = ETS.lookup(session_id)
 
       mark_session_as_expired(session_id, sse_pid, state_pid)
@@ -184,11 +168,10 @@ defmodule SSE.SessionStorage.ETSTest do
       expired_session = "expired-session"
       valid_session = "valid-session"
 
-      :ok = ETS.insert(expired_session, sse_pid, state_pid, 10)
-
+      :ok = ETS.insert(expired_session, sse_pid, state_pid)
       mark_session_as_expired(expired_session, sse_pid, state_pid)
 
-      :ok = ETS.insert(valid_session, sse_pid, state_pid, 3600)
+      :ok = ETS.insert(valid_session, sse_pid, state_pid)
 
       assert :ok = ETS.cleanup_expired()
 
