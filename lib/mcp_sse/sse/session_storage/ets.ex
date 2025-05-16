@@ -72,8 +72,8 @@ defmodule SSE.SessionStorage.ETS do
   end
 
   @impl SSE.SessionStorage
-  def insert(session_id, sse_pid, state_pid) do
-    actual_ttl = SSE.SessionStorage.default_ttl()
+  def insert(session_id, sse_pid, state_pid, ttl \\ nil) do
+    actual_ttl = ttl || SSE.SessionStorage.default_ttl()
 
     expires_at = :os.system_time(:seconds) + actual_ttl
 
