@@ -31,6 +31,8 @@ For more information about the Model Context Protocol, visit:
 - [Other Notes](#other-notes)
   - [Example Client Usage](#example-client-usage)
   - [Session Management](#session-management)
+    - [Pluggable Session Storage](#pluggable-session-storage)
+      - [Custom Storage Backends](#custom-storage-backends)
   - [MCP Response Formatting](#mcp-response-formatting)
 - [Contributing](#contributing)
 
@@ -40,7 +42,7 @@ For more information about the Model Context Protocol, visit:
 - SSE connection management
 - JSON-RPC message handling
 - Tool registration and execution
-- Session management
+- Pluggable session storage (ETS, Redis, PostgreSQL, Mnesia, etc.)
 - Automatic ping/keepalive
 - Error handling and validation
 
@@ -213,7 +215,7 @@ mix run --no-halt
 
 ### With MCP Inspector
 
-- Start the inspector: 
+- Start the inspector:
 
 ```bash
 MCP_SERVER_URL=localhost:4000 npx @modelcontextprotocol/inspector@latest
@@ -367,6 +369,36 @@ The MCP SSE server requires a session ID for each connection. The router automat
 - Uses an existing session ID from query parameters if provided
 - Generates a new session ID if none exists
 - Ensures all requests to `/sse` and `/message` endpoints have a valid session ID
+
+#### Pluggable Session Storage
+
+By default, session data is stored in an ETS table, which works well for single-node deployments. For distributed deployments, you should implement a custom storage backend.
+
+##### Custom Storage Backends
+
+You can implement your own storage backend by creating a module that implements the `SSE.SessionStorage` behaviour:
+
+```elixir
+defmodule MyApp.CustomSessionStorage do
+  @behaviour SSE.SessionStorage
+
+  # Implement the required callbacks
+  @impl SSE.SessionStorage
+  def start_link(opts), do: # ...
+
+  @impl SSE.SessionStorage
+  def insert(session_id, sse_pid, state_pid), do: # ...
+
+  @impl SSE.SessionStorage
+  def lookup(session_id), do: # ...
+
+  @impl SSE.SessionStorage
+  def delete(session_id), do: # ...
+end
+
+# Then configure your application to use it
+config :mcp_sse, :session_storage, MyApp.CustomSessionStorage
+```
 
 ### MCP Response Formatting
 
