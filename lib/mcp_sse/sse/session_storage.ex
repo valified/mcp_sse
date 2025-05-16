@@ -29,7 +29,7 @@ defmodule SSE.SessionStorage do
 
   * `child_spec/1` - Returns the child specification for the storage backend
   * `start_link/1` - Starts the storage backend
-  * `insert/4` - Stores a session with its associated SSE and state PIDs, with optional TTL
+  * `insert/3` - Stores a session with its associated SSE and state PIDs (uses configured TTL)
   * `lookup/1` - Retrieves a session by its ID
   * `delete/1` - Removes a session by its ID
   * `cleanup_expired/0` - Removes expired sessions (for backends without automatic expiration)
@@ -86,8 +86,7 @@ defmodule SSE.SessionStorage do
   @callback insert(
               session_id :: String.t(),
               sse_pid :: pid(),
-              state_pid :: pid(),
-              ttl :: non_neg_integer() | nil
+              state_pid :: pid()
             ) :: :ok | {:error, term()}
 
   @doc """
