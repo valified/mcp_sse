@@ -149,7 +149,7 @@ defmodule SSE.ConnectionPlug do
         %{"method" => "notifications/initialized"} ->
           ConnectionState.handle_initialized(state_pid)
           # Start ping notifications after successful initialization
-          schedule_next_ping(sse_pid)
+          ConnectionState.start_ping_scheduling(state_pid)
           conn |> put_status(202) |> send_json(%{status: "ok"})
 
         %{"method" => "notifications/cancelled"} ->
