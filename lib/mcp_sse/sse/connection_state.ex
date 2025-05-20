@@ -75,6 +75,11 @@ defmodule SSE.ConnectionState do
     GenServer.stop(pid, :normal)
   end
 
+  @doc false
+  def start_ping_scheduling(pid) do
+    GenServer.cast(pid, :start_ping_scheduling)
+  end
+
   @impl true
   def handle_call(:handle_initialize, _from, state) do
     new_state = %{state | init_received: true, last_activity: System.monotonic_time(:millisecond)}
@@ -165,5 +170,14 @@ defmodule SSE.ConnectionState do
 
   defp schedule_inactivity_timeout(sse_pid) do
     Process.send_after(sse_pid, :inactivity_timeout, @inactivity_timeout)
+  end
+
+  @impl true
+  def handle_cast(:start_ping_scheduling, %{sse_pid: sse_pid} = state) do
+    timeout = Application.get_env(:mcp_sse, :sse_keepalive_timeout, 15_000)
+    if timeout != :infinity && sse_pid do
+      Process.send_after(sse_pid, :send_ping, timeout)
+    end
+    {:noreply, state}
   end
 end
