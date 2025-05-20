@@ -155,7 +155,8 @@ defmodule SSE.ConnectionState do
 
   @impl true
   def handle_info(:init_timeout, %{session_id: session_id} = state) do
-    Logger.warning("Initialization timeout for session #{session_id}")
+    Logger.info("Initialization timeout for session #{session_id}")
+
     # Look up the connection safely
     case SessionStorage.storage_module().lookup(session_id) do
       {:ok, {pid, _state_pid}} ->
@@ -175,9 +176,11 @@ defmodule SSE.ConnectionState do
   @impl true
   def handle_cast(:start_ping_scheduling, %{sse_pid: sse_pid} = state) do
     timeout = Application.get_env(:mcp_sse, :sse_keepalive_timeout, 15_000)
+
     if timeout != :infinity && sse_pid do
       Process.send_after(sse_pid, :send_ping, timeout)
     end
+
     {:noreply, state}
   end
 end
